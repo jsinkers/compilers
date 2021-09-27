@@ -76,9 +76,19 @@ class Stack inherits IO {
     };
     
     -- interpret the input string and update the stack
-    interpret(s: String): Object { 
-      if s = "a" then out_string(s) else 
-      if s = "x" then push(new StopCommand) else false
+    interpret(s: String): StackCommand { 
+      if s = "+" then push(new PlusCommand) else 
+      if s = "s" then push(new SwapCommand) else
+      if s = "e" then push(new EvalCommand) else
+      if s = "d" then push(new DisplayCommand) else
+      if s = "x" then push(new StopCommand) else 
+        let intCommand: IntCommand <- new IntCommand
+          in { intCommand.setValue((new A2I).a2i(s));
+            push(intCommand);
+          }
+      fi
+      fi
+      fi
       fi
       fi
     };
@@ -88,26 +98,14 @@ class Stack inherits IO {
 class IntCommand inherits StackCommand {
     value: Int;
 
-    evaluate(): Int {
-        value
-    };
+    evaluate(): StackCommand { self };
 
     setValue(newValue: Int): Int { value <- newValue };
-    -- init(newNext: StackCommand, newValue: Int): StackCommand 
-    -- {
-    --     {
-    --         -- seems like overridden methods need to match arguments of parent
-    --         parentInit(newNext);
-    --         --self@StackCommand.init(newNext, dummy);
-    --         value <- newValue;
-    --         self;
-    --     }
-    -- };
 };
 
 
 class PlusCommand inherits StackCommand {
-
+    -- evaluate(): StackCommand
 };
 
 class SwapCommand inherits StackCommand {
