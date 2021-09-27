@@ -65,3 +65,6 @@ Questions on PA1
 
 3. List 3 things you DON'T like about Cool.
 
+- can't override methods with different arguments
+- compulsory else branch on conditionals
+- cool compiler error messages often aren't informative enough
