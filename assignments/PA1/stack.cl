@@ -26,7 +26,7 @@ class Main inherits IO {
    };
 };
 
-class StackCommand {
+class StackCommand inherits IO {
     next: StackCommand;
 
     parentInit(newNext: StackCommand): StackCommand {
@@ -42,6 +42,10 @@ class StackCommand {
     continue(): Bool { true };
 
     setNext(newNext: StackCommand): StackCommand { next <- newNext };
+
+    getNext(): StackCommand { next };
+
+    print(): Object { new Object};
 };
 
 class Stack inherits IO {
@@ -81,6 +85,7 @@ class Stack inherits IO {
       if s = "s" then push(new SwapCommand) else
       if s = "e" then push(new EvalCommand) else
       if s = "d" then push(new DisplayCommand) else
+        -- need to actually display stack
       if s = "x" then push(new StopCommand) else 
         let intCommand: IntCommand <- new IntCommand
           in { intCommand.setValue((new A2I).a2i(s));
@@ -101,15 +106,37 @@ class IntCommand inherits StackCommand {
     evaluate(): StackCommand { self };
 
     setValue(newValue: Int): Int { value <- newValue };
+
+    print(): Object {
+        (new IO).out_string("+\n")
+    };
 };
 
 
 class PlusCommand inherits StackCommand {
-    -- evaluate(): StackCommand
+    -- evaluate(): StackCommand { 
+    --     -- pop off first command
+    --     -- pop off second command
+    -- };
+    print(): Object {
+        (new IO).out_string("+\n")
+    };
 };
 
 class SwapCommand inherits StackCommand {
+    evaluate(): StackCommand {
+        let sc1: StackCommand, sc2: StackCommand in {
+            sc1 <- next.getNext();
+            sc2 <- sc1.getNext();
+            next.setNext(sc2);
+            sc1.setNext(next);
+            sc1;
+        }
+    };
 
+    print(): Object {
+        out_string("s\n")
+    };
 };
 
 class EvalCommand inherits StackCommand {
@@ -117,7 +144,16 @@ class EvalCommand inherits StackCommand {
 };
 
 class DisplayCommand inherits StackCommand {
-
+    print(): Object {
+        let n: StackCommand <- next in 
+        while isvoid n = false
+        loop {
+            n.print();
+            n <- n.getNext();
+        }
+        pool
+        
+    };
 };
 
 class StopCommand inherits StackCommand {

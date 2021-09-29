@@ -68,3 +68,4 @@ Questions on PA1
 - can't override methods with different arguments
 - compulsory else branch on conditionals
 - cool compiler error messages often aren't informative enough
+- seems that return type of function is compulsory
