@@ -67,22 +67,6 @@ class Stack inherits IO {
 
     getContinue(): Bool { continue };
 
-    -- pop a command from the stack
-    --pop(): StackCommand {};
-    --pop(): Int { };
-        -- popped: StackCommand;
-        (* if isvoid head then 
-         * {
-         *     popped <- head;
-         *     head <- head.next;
-         *     
-         * };
-         * else popped
-         * fi
-         *)
-        -- s: StackCommand;
-    --}
-
     -- push a new command onto the stack.  return the current head
     push(newCmd: StackCommand): StackCommand {
         {
@@ -95,7 +79,10 @@ class Stack inherits IO {
     interpret(s: String): StackCommand { 
       if s = "+" then push(new PlusCommand) else 
       if s = "s" then push(new SwapCommand) else
-      if s = "e" then { head <- head.evaluate(); } else
+      if s = "e" then 
+        if isvoid head 
+            then head 
+            else {head <- head.evaluate();} fi else
       if s = "d" then { print(); head; } else
       if s = "x" then { continue <- false; head; } else 
         let intCommand: IntCommand <- new IntCommand
@@ -130,6 +117,8 @@ class IntCommand inherits StackCommand {
 
     setValue(newValue: Int): Int { value <- newValue };
 
+    getValue(): Int { value };
+
     print(): Object {
         (new IO).out_string(a2i.i2a(value).concat("\n"))
     };
@@ -138,10 +127,20 @@ class IntCommand inherits StackCommand {
 
 class PlusCommand inherits StackCommand {
     evaluate(): StackCommand { 
-        -- pop off first command
-        --let sc1: StackCommand <- next, sc2: StackCommand <- next.getNext() 
-        -- pop off second command
-        next
+        let v1: Int, v2: Int, val: Int, 
+            scNew: IntCommand in {
+            case pop() of 
+                x: IntCommand => v1 <- x.getValue();
+            esac;
+            case pop() of
+                x: IntCommand => v2 <- x.getValue(); 
+            esac;
+            
+            val <- v1 + v2;
+            scNew <- new IntCommand;
+            scNew.setValue(val);
+            push(scNew);
+        }
     };
 
     print(): Object {
