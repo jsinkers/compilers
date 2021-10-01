@@ -7,7 +7,7 @@ import java_cup.runtime.Symbol;
 %%
 
 %{
-
+//  Declarations: helper functions 
 /*  Stuff enclosed in %{ %} is copied verbatim to the lexer class
  *  definition, all the extra variables/functions you want to use in the
  *  lexer actions should go here.  Don't remove or modify anything that
@@ -39,7 +39,8 @@ import java_cup.runtime.Symbol;
 
 /*  Stuff enclosed in %init{ %init} is copied verbatim to the lexer
  *  class constructor, all the extra initialization you want to do should
- *  go here.  Don't remove or modify anything that was there initially. */
+ *  go here.  Don't remove or modify anything that was there initially. 
+ */
 
     // empty for now
 %init}
@@ -51,7 +52,8 @@ import java_cup.runtime.Symbol;
  *  states and want to do something special if an EOF is encountered in
  *  one of those states, place your code in the switch statement.
  *  Ultimately, you should return the EOF symbol, or your lexer won't
- *  work.  */
+ *  work.  
+ */
 
     switch(yy_lexical_state) {
     case YYINITIAL:
@@ -69,6 +71,15 @@ import java_cup.runtime.Symbol;
 %class CoolLexer
 %cup
 
+DIGIT=[0-9]
+LETTER=[a-zA-Z]
+LOWERCASE=[a-z]
+UPPERCASE=[A-Z]
+ID_LETTERS=({LETTER}|{DIGIT}|_)
+WHITESPACE=[ \n\f\r\t\v]
+
+%state COMMENT
+
 %%
 
 <YYINITIAL>"=>"			{ /* Sample lexical rule for "=>" arrow.
@@ -76,8 +87,29 @@ import java_cup.runtime.Symbol;
                                      here, after the last %% separator */
                                   return new Symbol(TokenConstants.DARROW); }
 
+{DIGIT}+                  { System.out.println(yytext()); /*return new IntSymbol(yytext(), , TokenConstants.INT_CONST); */} 
+{UPPERCASE}{ID_LETTERS}*       { System.out.println(yytext() + " TypeID"); }
+{LOWERCASE}{ID_LETTERS}* { System.out.println(yytext() + " ObjectID"); }
+"self"                      {;}
+"SELF_TYPE"                 {;}
+"="                     { return new Symbol(TokenConstants.EQ); }
+"class" { return new Symbol(TokenConstants.CLASS);}
+"else" { return new Symbol(TokenConstants.ELSE); }
+"false" { ;}
+"fi" { ;}
+"if" { return new Symbol(TokenConstants.IF);}
+"in" { return new Symbol(TokenConstants.IN);}
+"inherits" {;}
+"isvoid" {;}
+
+{WHITESPACE}+ { System.out.println("Whitespace");/* no action for whitespace */}
+"--".*  { /* jump to next line */ System.out.println("Line comment");}
+"(*"  { yybegin(COMMENT); System.out.println(yytext() + ": Block comment");}
+<COMMENT>([^")"*])* { System.out.println(yytext() + ": comment text"); }
+<COMMENT>"*)" { yybegin(YYINITIAL); System.out.println(yytext() + ": End of comment");}
+
 .                               { /* This rule should be the very last
                                      in your lexical specification and
                                      will match match everything not
                                      matched by other lexical rules. */
-                                  System.err.println("LEXER BUG - UNMATCHED: " + yytext()); }
+    System.err.println("LEXER BUG - UNMATCHED: " + yytext()); }
