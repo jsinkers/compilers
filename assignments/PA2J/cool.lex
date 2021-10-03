@@ -79,6 +79,7 @@ ID_LETTERS=({LETTER}|{DIGIT}|_)
 WHITESPACE=[ \n\f\r\t\v]
 
 %state COMMENT
+%state IF
 
 %%
 
@@ -87,26 +88,28 @@ WHITESPACE=[ \n\f\r\t\v]
                                      here, after the last %% separator */
                                   return new Symbol(TokenConstants.DARROW); }
 
-{DIGIT}+                  { System.out.println(yytext()); /*return new IntSymbol(yytext(), , TokenConstants.INT_CONST); */} 
+{DIGIT}+                  { System.out.println(yytext() + ": Int"); 
+                            return new IntSymbol(yytext(), , TokenConstants.INT_CONST); } 
 {UPPERCASE}{ID_LETTERS}*       { System.out.println(yytext() + " TypeID"); }
 {LOWERCASE}{ID_LETTERS}* { System.out.println(yytext() + " ObjectID"); }
 "self"                      {;}
 "SELF_TYPE"                 {;}
 "="                     { return new Symbol(TokenConstants.EQ); }
 "class" { return new Symbol(TokenConstants.CLASS);}
-"else" { return new Symbol(TokenConstants.ELSE); }
-"false" { ;}
-"fi" { ;}
-"if" { return new Symbol(TokenConstants.IF);}
+"if" { return new Symbol(TokenConstants.IF); yybegin(IF); System.out.println("if");}
+<IF>"then" { return new Symbol(TokenConstants.THEN);  System.out.println("then");}
+<IF>"else" { return new Symbol(TokenConstants.ELSE);  System.out.println("else");}
+<IF>"fi" { return new Symbol(TokenConstants.FI); yybegin(YYINITIAL) System.out.println("fi");}
 "in" { return new Symbol(TokenConstants.IN);}
 "inherits" {;}
 "isvoid" {;}
+"false" { ;}
 
 {WHITESPACE}+ { System.out.println("Whitespace");/* no action for whitespace */}
 "--".*  { /* jump to next line */ System.out.println("Line comment");}
-"(*"  { yybegin(COMMENT); System.out.println(yytext() + ": Block comment");}
-<COMMENT>([^")"*])* { System.out.println(yytext() + ": comment text"); }
-<COMMENT>"*)" { yybegin(YYINITIAL); System.out.println(yytext() + ": End of comment");}
+"(*"  { yybegin(COMMENT); System.out.println("Block comment");}
+<COMMENT>([^")"*])* { System.out.println("comment text"); }
+<COMMENT>"*)" { yybegin(YYINITIAL); System.out.println("End of comment");}
 
 .                               { /* This rule should be the very last
                                      in your lexical specification and
