@@ -34,6 +34,7 @@ import java_cup.runtime.Symbol;
     AbstractSymbol curr_filename() {
 	return filename;
     }
+
 %}
 
 %init{
@@ -62,11 +63,11 @@ import java_cup.runtime.Symbol;
             break;
         /* If necessary, add code for other states here, e.g: */
         case COMMENT:
-            //return new Symbol(TokenConstants.ERROR, AbstractTable.stringtable.addString("EOF in comment"));
-            // how to return error and still return EOF symbol?
-            System.err.println("EOF in comment");
-            return new Symbol(TokenConstants.EOF, AbstractTable.stringtable.addString("EOF in comment"));
-            //break;
+            yybegin(YYINITIAL);
+            return new Symbol(TokenConstants.ERROR, AbstractTable.stringtable.addString("EOF in comment"));
+        case STRING:
+            yybegin(YYINITIAL);
+            return new Symbol(TokenConstants.ERROR, AbstractTable.stringtable.addString("EOF in string"));
     }
     return new Symbol(TokenConstants.EOF);
 %eofval}
@@ -79,77 +80,129 @@ LETTER=[a-zA-Z]
 LOWERCASE=[a-z]
 UPPERCASE=[A-Z]
 ID_LETTERS=({LETTER}|{DIGIT}|_)
-WHITESPACE=[ \n\f\r\t\v]
+WHITESPACE=[ \f\r\t\v]
+NEWLINE=\n|\r|\r\n
 SPECIAL_ID=(Object|Int|Bool|String|SELF_TYPE|self)
 %state COMMENT
 %state STRING
+%state STRING_ERROR
 
 %%
 
-"\*"                        { return new Symbol(TokenConstants.MULT);}
-"(?i:inherits)"             { return new Symbol(TokenConstants.INHERITS);}
-"(?i:pool)"                 { return new Symbol(TokenConstants.POOL);}
-"(?i:case)"                 { return new Symbol(TokenConstants.CASE);}
-"("                         { return new Symbol(TokenConstants.LPAREN);}
-";"                         { return new Symbol(TokenConstants.SEMI);}
-"-"                         { return new Symbol(TokenConstants.MINUS);}
+<YYINITIAL>{NEWLINE}                             { curr_lineno++; }
+<YYINITIAL>"\*"                        { return new Symbol(TokenConstants.MULT);}
+<YYINITIAL>"(?i:inherits)"             { return new Symbol(TokenConstants.INHERITS);}
+<YYINITIAL>"(?i:pool)"                 { return new Symbol(TokenConstants.POOL);}
+<YYINITIAL>"(?i:case)"                 { return new Symbol(TokenConstants.CASE);}
+<YYINITIAL>"("                         { return new Symbol(TokenConstants.LPAREN);}
+<YYINITIAL>";"                         { return new Symbol(TokenConstants.SEMI);}
+<YYINITIAL>"-"                         { return new Symbol(TokenConstants.MINUS);}
+<YYINITIAL>"\""                        { yybegin(STRING); 
+                                         string_buf.delete(0, string_buf.length());}
+<STRING>\n                             { curr_lineno++; }
+<STRING>"\n"                           { 
+                                         if (string_buf.length() < MAX_STR_CONST) { 
+                                            string_buf.append("\n"); 
+                                         } else {
+                                            yybegin(STRING_ERROR);
+                                            return new Symbol(TokenConstants.ERROR, "String constant too long");
+                                         }
+                                       }
+<STRING>"\b"                           { if (string_buf.length() < MAX_STR_CONST) { 
+                                            string_buf.append("\b"); 
+                                         } else {
+                                            yybegin(STRING_ERROR);
+                                            return new Symbol(TokenConstants.ERROR, "String constant too long");
+                                         }
+                                       }
+<STRING>"\t"                           { if (string_buf.length() < MAX_STR_CONST) { 
+                                            string_buf.append("\t"); 
+                                         } else {
+                                            yybegin(STRING_ERROR);
+                                            return new Symbol(TokenConstants.ERROR, "String constant too long");
+                                         }
+                                       }
+<STRING>"\f"                           { if (string_buf.length() < MAX_STR_CONST) { 
+                                            string_buf.append("\f"); 
+                                         } else {
+                                            yybegin(STRING_ERROR);
+                                            return new Symbol(TokenConstants.ERROR, "String constant too long");
+                                         }
+                                       }
 
-")"                         { return new Symbol(TokenConstants.RPAREN);}
-{UPPERCASE}{ID_LETTERS}*    { return new Symbol(TokenConstants.TYPEID, AbstractTable.idtable.addString(yytext()));}
-"<"                         { return new Symbol(TokenConstants.LT);}
-"(?i:in)"                   { return new Symbol(TokenConstants.IN);}
-","                         { return new Symbol(TokenConstants.COMMA);}
-"(?i:class)"                { return new Symbol(TokenConstants.CLASS);}
-"(?i:fi)"                   { return new Symbol(TokenConstants.FI);}
+<STRING>[^\"\\]                        { if (string_buf.length() < MAX_STR_CONST) { 
+                                            string_buf.append(yytext()); 
+                                         } else {
+                                            yybegin(STRING_ERROR);
+                                            return new Symbol(TokenConstants.ERROR, "String constant too long");
+                                         }
+                                       }
+<STRING>"\0"                           { if (string_buf.length() < MAX_STR_CONST) { 
+                                            string_buf.append("0"); 
+                                         } else {
+                                            yybegin(STRING_ERROR);
+                                            return new Symbol(TokenConstants.ERROR, "String constant too long");
+                                         }
+                                       }
+<STRING>"\""                           { yybegin(YYINITIAL); 
+                                         return new Symbol(TokenConstants.STR_CONST, AbstractTable.stringtable.addString(string_buf.toString()));}
+<STRING>\0                            { yybegin(STRING_ERROR); return new Symbol(TokenConstants.ERROR, "String contains null character");}
+<STRING_ERROR>.*                      { ; }
+<STRING_ERROR>\n                      { curr_lineno++; 
+                                        yybegin(YYINITIAL); }
+<STRING_ERROR>"\""                    { yybegin(YYINITIAL); }
 
-"(?i:loop)"                 { return new Symbol(TokenConstants.POOL);}
-"\+"                        { return new Symbol(TokenConstants.PLUS);}
-"<-"                        { return new Symbol(TokenConstants.ASSIGN);}
-"(?i:if)"                   { return new Symbol(TokenConstants.IF);}
-"<="                        { return new Symbol(TokenConstants.LE);}
-"(?i:of)"                   { return new Symbol(TokenConstants.OF);}
 
-{DIGIT}+                    { return new Symbol(TokenConstants.INT_CONST, AbstractTable.inttable.addString(yytext()));}
-"(?i:new)"                  { return new Symbol(TokenConstants.NEW);}
+<YYINITIAL>")"                         { return new Symbol(TokenConstants.RPAREN);}
+<YYINITIAL>"not"                       { return new Symbol(TokenConstants.NOT);}
+<YYINITIAL>{UPPERCASE}{ID_LETTERS}*    { return new Symbol(TokenConstants.TYPEID, AbstractTable.idtable.addString(yytext()));}
+<YYINITIAL>"<"                         { return new Symbol(TokenConstants.LT);}
+<YYINITIAL>"(?i:in)"                   { return new Symbol(TokenConstants.IN);}
+<YYINITIAL>","                         { return new Symbol(TokenConstants.COMMA);}
+<YYINITIAL>"(?i:class)"                { return new Symbol(TokenConstants.CLASS);}
+<YYINITIAL>"(?i:fi)"                   { return new Symbol(TokenConstants.FI);}
+<YYINITIAL>"/"                         { return new Symbol(TokenConstants.DIV);}
+<YYINITIAL>"(?i:loop)"                 { return new Symbol(TokenConstants.POOL);}
+<YYINITIAL>"+"                        { return new Symbol(TokenConstants.PLUS);}
+<YYINITIAL>"<-"                        { return new Symbol(TokenConstants.ASSIGN);}
+<YYINITIAL>"(?i:if)"                   { return new Symbol(TokenConstants.IF);}
+<YYINITIAL>"."                         { return new Symbol(TokenConstants.DOT);}
+<YYINITIAL>"<="                        { return new Symbol(TokenConstants.LE);}
+<YYINITIAL>"(?i:of)"                   { return new Symbol(TokenConstants.OF);}
 
-"(?i:isvoid)"               { return new Symbol(TokenConstants.ISVOID);}
-"="                         { return new Symbol(TokenConstants.EQ);}
+<YYINITIAL>{DIGIT}+                    { return new Symbol(TokenConstants.INT_CONST, AbstractTable.inttable.addString(yytext()));}
+<YYINITIAL>"(?i:new)"                  { return new Symbol(TokenConstants.NEW);}
 
-":"                         { return new Symbol(TokenConstants.COLON);}
+<YYINITIAL>"(?i:isvoid)"               { return new Symbol(TokenConstants.ISVOID);}
+<YYINITIAL>"="                         { return new Symbol(TokenConstants.EQ);}
 
-"{"                         { return new Symbol(TokenConstants.LBRACE);}
-"(?i:else)"                 { return new Symbol(TokenConstants.ELSE);}
+<YYINITIAL>":"                         { return new Symbol(TokenConstants.COLON);}
+<YYINITIAL>"~"                         { return new Symbol(TokenConstants.NEG);}
+<YYINITIAL>"{"                         { return new Symbol(TokenConstants.LBRACE);}
+<YYINITIAL>"(?i:else)"                 { return new Symbol(TokenConstants.ELSE);}
 <YYINITIAL>"=>"			    { return new Symbol(TokenConstants.DARROW);}
-"(?i:while)"                  { return new Symbol(TokenConstants.WHILE);}
-"(?i:esac)"                  { return new Symbol(TokenConstants.ESAC);}
-"(?i:let)"                  { return new Symbol(TokenConstants.LET);}
+<YYINITIAL>"(?i:while)"                  { return new Symbol(TokenConstants.WHILE);}
+<YYINITIAL>"(?i:esac)"                  { return new Symbol(TokenConstants.ESAC);}
+<YYINITIAL>"(?i:let)"                  { return new Symbol(TokenConstants.LET);}
+<YYINITIAL>"}"                         { return new Symbol(TokenConstants.RBRACE);}
 
-"}"                         { return new Symbol(TokenConstants.RBRACE);}
-
-"(?i:then)"                 { return new Symbol(TokenConstants.THEN);}
-"f(?i:alse)"                { return new Symbol(TokenConstants.BOOL_CONST, false);}
-"t(?i:rue)"                 { return new Symbol(TokenConstants.BOOL_CONST, true);}
+<YYINITIAL>"(?i:then)"                 { return new Symbol(TokenConstants.THEN);}
+<YYINITIAL>"f(?i:alse)"                { return new Symbol(TokenConstants.BOOL_CONST, false);}
+<YYINITIAL>"t(?i:rue)"                 { return new Symbol(TokenConstants.BOOL_CONST, true);}
 <YYINITIAL>{LOWERCASE}{ID_LETTERS}*    { return new Symbol(TokenConstants.OBJECTID, AbstractTable.idtable.addString(yytext()));}
 <YYINITIAL>SPECIAL_ID                  { return new Symbol(TokenConstants.OBJECTID, AbstractTable.idtable.addString(yytext()));}
-<YYINITIAL>"\""             { System.out.println("Start string"); 
-                              yybegin(STRING); 
-                              string_buf.delete(0, string_buf.length());}
-<STRING>"\n"               { System.out.println("newline in string"); 
-                              string_buf.append("\n"); }
-<STRING>[^\"]               { System.out.println("string char"); string_buf.append(yytext());}
-<STRING>"\""                { System.out.println("end of string: \"" + string_buf + "\"");
-                              yybegin(YYINITIAL); 
-                              return new Symbol(TokenConstants.STR_CONST, AbstractTable.stringtable.addString(string_buf.toString()));}
+<YYINITIAL>"@"                           { return new Symbol(TokenConstants.AT);}
+<YYINITIAL>"--".*                      { /* jump to next line */ ;}
+<YYINITIAL>"(*"                        { yybegin(COMMENT);}
+<COMMENT>\n                            {  curr_lineno++; }
+<COMMENT>([^\n)*])*                    { ;}
+<COMMENT>"*)"                          { yybegin(YYINITIAL);}
+<YYINITIAL>"*)"                        { return new Symbol(TokenConstants.ERROR, AbstractTable.stringtable.addString("Unmatched )*"));}
+<YYINITIAL>{WHITESPACE}+               { ;/* no action for whitespace */}
+.                                      { /* This rule should be the very last
+                                            in your lexical specification and
+                                            will match match everything not
+                                            matched by other lexical rules. */
+                                         System.err.println("LEXER BUG - UNMATCHED: " + yytext()); 
+                                         return new Symbol(TokenConstants.ERROR, AbstractTable.stringtable.addString(yytext()));}
 
-"--".*                      { /* jump to next line */ ;}
-"(*"                        { yybegin(COMMENT);}
-<COMMENT>([^")"*])*         { ;}
-<COMMENT>"*)"               { yybegin(YYINITIAL);}
-"*)"                        { return new Symbol(TokenConstants.ERROR, AbstractTable.stringtable.addString("Unmatched )*"));}
-{WHITESPACE}+               { ;/* no action for whitespace */}
-.                           { /* This rule should be the very last
-                                 in your lexical specification and
-                                 will match match everything not
-                                 matched by other lexical rules. */
-                                System.err.println("LEXER BUG - UNMATCHED: " + yytext()); 
-                                return new Symbol(TokenConstants.ERROR, AbstractTable.stringtable.addString(yytext()));}
