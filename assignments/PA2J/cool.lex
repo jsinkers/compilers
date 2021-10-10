@@ -19,6 +19,7 @@ import java_cup.runtime.Symbol;
     // For assembling string constants
     StringBuffer string_buf = new StringBuffer();
 
+
     private int curr_lineno = 1;
     int get_curr_lineno() {
 	return curr_lineno;
@@ -81,8 +82,7 @@ ID_LETTERS=({LETTER}|{DIGIT}|_)
 WHITESPACE=[ \n\f\r\t\v]
 SPECIAL_ID=(Object|Int|Bool|String|SELF_TYPE|self)
 %state COMMENT
-%state IF
-%state PAREN
+%state STRING
 
 %%
 
@@ -90,26 +90,22 @@ SPECIAL_ID=(Object|Int|Bool|String|SELF_TYPE|self)
 "(?i:inherits)"             { return new Symbol(TokenConstants.INHERITS);}
 "(?i:pool)"                 { return new Symbol(TokenConstants.POOL);}
 "(?i:case)"                 { return new Symbol(TokenConstants.CASE);}
-"("                        { yybegin(PAREN);
-                              return new Symbol(TokenConstants.LPAREN);}
+"("                         { return new Symbol(TokenConstants.LPAREN);}
 ";"                         { return new Symbol(TokenConstants.SEMI);}
 "-"                         { return new Symbol(TokenConstants.MINUS);}
 
-<PAREN>")"                 { yybegin(YYINITIAL); 
-                              return new Symbol(TokenConstants.RPAREN);}
+")"                         { return new Symbol(TokenConstants.RPAREN);}
 {UPPERCASE}{ID_LETTERS}*    { return new Symbol(TokenConstants.TYPEID, AbstractTable.idtable.addString(yytext()));}
 "<"                         { return new Symbol(TokenConstants.LT);}
 "(?i:in)"                   { return new Symbol(TokenConstants.IN);}
 ","                         { return new Symbol(TokenConstants.COMMA);}
 "(?i:class)"                { return new Symbol(TokenConstants.CLASS);}
-<IF>"(?i:fi)"               { yybegin(YYINITIAL); 
-                              return new Symbol(TokenConstants.FI);}
+"(?i:fi)"                   { return new Symbol(TokenConstants.FI);}
 
 "(?i:loop)"                 { return new Symbol(TokenConstants.POOL);}
 "\+"                        { return new Symbol(TokenConstants.PLUS);}
 "<-"                        { return new Symbol(TokenConstants.ASSIGN);}
-"(?i:if)"                   { yybegin(IF); 
-                              return new Symbol(TokenConstants.IF);}
+"(?i:if)"                   { return new Symbol(TokenConstants.IF);}
 "<="                        { return new Symbol(TokenConstants.LE);}
 "(?i:of)"                   { return new Symbol(TokenConstants.OF);}
 
@@ -122,7 +118,7 @@ SPECIAL_ID=(Object|Int|Bool|String|SELF_TYPE|self)
 ":"                         { return new Symbol(TokenConstants.COLON);}
 
 "{"                         { return new Symbol(TokenConstants.LBRACE);}
-<IF>"(?i:else)"             { return new Symbol(TokenConstants.ELSE);}
+"(?i:else)"                 { return new Symbol(TokenConstants.ELSE);}
 <YYINITIAL>"=>"			    { return new Symbol(TokenConstants.DARROW);}
 "(?i:while)"                  { return new Symbol(TokenConstants.WHILE);}
 "(?i:esac)"                  { return new Symbol(TokenConstants.ESAC);}
@@ -130,11 +126,20 @@ SPECIAL_ID=(Object|Int|Bool|String|SELF_TYPE|self)
 
 "}"                         { return new Symbol(TokenConstants.RBRACE);}
 
-<IF>"(?i:then)"             { return new Symbol(TokenConstants.THEN);}
+"(?i:then)"                 { return new Symbol(TokenConstants.THEN);}
 "f(?i:alse)"                { return new Symbol(TokenConstants.BOOL_CONST, false);}
 "t(?i:rue)"                 { return new Symbol(TokenConstants.BOOL_CONST, true);}
-{LOWERCASE}{ID_LETTERS}*    { return new Symbol(TokenConstants.OBJECTID, AbstractTable.idtable.addString(yytext()));}
-SPECIAL_ID                  { return new Symbol(TokenConstants.OBJECTID, AbstractTable.idtable.addString(yytext()));}
+<YYINITIAL>{LOWERCASE}{ID_LETTERS}*    { return new Symbol(TokenConstants.OBJECTID, AbstractTable.idtable.addString(yytext()));}
+<YYINITIAL>SPECIAL_ID                  { return new Symbol(TokenConstants.OBJECTID, AbstractTable.idtable.addString(yytext()));}
+<YYINITIAL>"\""             { System.out.println("Start string"); 
+                              yybegin(STRING); 
+                              string_buf.delete(0, string_buf.length());}
+<STRING>"\n"               { System.out.println("newline in string"); 
+                              string_buf.append("\n"); }
+<STRING>[^\"]               { System.out.println("string char"); string_buf.append(yytext());}
+<STRING>"\""                { System.out.println("end of string: \"" + string_buf + "\"");
+                              yybegin(YYINITIAL); 
+                              return new Symbol(TokenConstants.STR_CONST, AbstractTable.stringtable.addString(string_buf.toString()));}
 
 "--".*                      { /* jump to next line */ ;}
 "(*"                        { yybegin(COMMENT);}
@@ -146,5 +151,5 @@ SPECIAL_ID                  { return new Symbol(TokenConstants.OBJECTID, Abstrac
                                  in your lexical specification and
                                  will match match everything not
                                  matched by other lexical rules. */
-                                // System.err.println("LEXER BUG - UNMATCHED: " + yytext()); 
+                                System.err.println("LEXER BUG - UNMATCHED: " + yytext()); 
                                 return new Symbol(TokenConstants.ERROR, AbstractTable.stringtable.addString(yytext()));}

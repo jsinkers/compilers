@@ -5,6 +5,7 @@
 class CellularAutomaton inherits IO {
     -- testing comment
     population_map : String;
+    test_string : String <- "abcdefg\n";
    
     init(map : String) : SELF_TYPE {
         {
