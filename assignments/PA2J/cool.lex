@@ -56,14 +56,16 @@ import java_cup.runtime.Symbol;
  */
 
     switch(yy_lexical_state) {
-    case YYINITIAL:
-	/* nothing special to do in the initial state */
-	break;
-	/* If necessary, add code for other states here, e.g:
-	   case COMMENT:
-	   ...
-	   break;
-	*/
+        case YYINITIAL:
+            /* nothing special to do in the initial state */
+            break;
+        /* If necessary, add code for other states here, e.g: */
+        case COMMENT:
+            //return new Symbol(TokenConstants.ERROR, AbstractTable.stringtable.addString("EOF in comment"));
+            // how to return error and still return EOF symbol?
+            System.err.println("EOF in comment");
+            return new Symbol(TokenConstants.EOF, AbstractTable.stringtable.addString("EOF in comment"));
+            //break;
     }
     return new Symbol(TokenConstants.EOF);
 %eofval}
@@ -77,42 +79,72 @@ LOWERCASE=[a-z]
 UPPERCASE=[A-Z]
 ID_LETTERS=({LETTER}|{DIGIT}|_)
 WHITESPACE=[ \n\f\r\t\v]
-
+SPECIAL_ID=(Object|Int|Bool|String|SELF_TYPE|self)
 %state COMMENT
 %state IF
+%state PAREN
 
 %%
 
-<YYINITIAL>"=>"			{ /* Sample lexical rule for "=>" arrow.
-                                     Further lexical rules should be defined
-                                     here, after the last %% separator */
-                                  return new Symbol(TokenConstants.DARROW); }
+"\*"                        { return new Symbol(TokenConstants.MULT);}
+"(?i:inherits)"             { return new Symbol(TokenConstants.INHERITS);}
+"(?i:pool)"                 { return new Symbol(TokenConstants.POOL);}
+"(?i:case)"                 { return new Symbol(TokenConstants.CASE);}
+"("                        { yybegin(PAREN);
+                              return new Symbol(TokenConstants.LPAREN);}
+";"                         { return new Symbol(TokenConstants.SEMI);}
+"-"                         { return new Symbol(TokenConstants.MINUS);}
 
-{DIGIT}+                  { System.out.println(yytext() + ": Int"); 
-                            return new IntSymbol(yytext(), , TokenConstants.INT_CONST); } 
-{UPPERCASE}{ID_LETTERS}*       { System.out.println(yytext() + " TypeID"); }
-{LOWERCASE}{ID_LETTERS}* { System.out.println(yytext() + " ObjectID"); }
-"self"                      {;}
-"SELF_TYPE"                 {;}
-"="                     { return new Symbol(TokenConstants.EQ); }
-"class" { return new Symbol(TokenConstants.CLASS);}
-"if" { return new Symbol(TokenConstants.IF); yybegin(IF); System.out.println("if");}
-<IF>"then" { return new Symbol(TokenConstants.THEN);  System.out.println("then");}
-<IF>"else" { return new Symbol(TokenConstants.ELSE);  System.out.println("else");}
-<IF>"fi" { return new Symbol(TokenConstants.FI); yybegin(YYINITIAL) System.out.println("fi");}
-"in" { return new Symbol(TokenConstants.IN);}
-"inherits" {;}
-"isvoid" {;}
-"false" { ;}
+<PAREN>")"                 { yybegin(YYINITIAL); 
+                              return new Symbol(TokenConstants.RPAREN);}
+{UPPERCASE}{ID_LETTERS}*    { return new Symbol(TokenConstants.TYPEID, AbstractTable.idtable.addString(yytext()));}
+"<"                         { return new Symbol(TokenConstants.LT);}
+"(?i:in)"                   { return new Symbol(TokenConstants.IN);}
+","                         { return new Symbol(TokenConstants.COMMA);}
+"(?i:class)"                { return new Symbol(TokenConstants.CLASS);}
+<IF>"(?i:fi)"               { yybegin(YYINITIAL); 
+                              return new Symbol(TokenConstants.FI);}
 
-{WHITESPACE}+ { System.out.println("Whitespace");/* no action for whitespace */}
-"--".*  { /* jump to next line */ System.out.println("Line comment");}
-"(*"  { yybegin(COMMENT); System.out.println("Block comment");}
-<COMMENT>([^")"*])* { System.out.println("comment text"); }
-<COMMENT>"*)" { yybegin(YYINITIAL); System.out.println("End of comment");}
+"(?i:loop)"                 { return new Symbol(TokenConstants.POOL);}
+"\+"                        { return new Symbol(TokenConstants.PLUS);}
+"<-"                        { return new Symbol(TokenConstants.ASSIGN);}
+"(?i:if)"                   { yybegin(IF); 
+                              return new Symbol(TokenConstants.IF);}
+"<="                        { return new Symbol(TokenConstants.LE);}
+"(?i:of)"                   { return new Symbol(TokenConstants.OF);}
 
-.                               { /* This rule should be the very last
-                                     in your lexical specification and
-                                     will match match everything not
-                                     matched by other lexical rules. */
-    System.err.println("LEXER BUG - UNMATCHED: " + yytext()); }
+{DIGIT}+                    { return new Symbol(TokenConstants.INT_CONST, AbstractTable.inttable.addString(yytext()));}
+"(?i:new)"                  { return new Symbol(TokenConstants.NEW);}
+
+"(?i:isvoid)"               { return new Symbol(TokenConstants.ISVOID);}
+"="                         { return new Symbol(TokenConstants.EQ);}
+
+":"                         { return new Symbol(TokenConstants.COLON);}
+
+"{"                         { return new Symbol(TokenConstants.LBRACE);}
+<IF>"(?i:else)"             { return new Symbol(TokenConstants.ELSE);}
+<YYINITIAL>"=>"			    { return new Symbol(TokenConstants.DARROW);}
+"(?i:while)"                  { return new Symbol(TokenConstants.WHILE);}
+"(?i:esac)"                  { return new Symbol(TokenConstants.ESAC);}
+"(?i:let)"                  { return new Symbol(TokenConstants.LET);}
+
+"}"                         { return new Symbol(TokenConstants.RBRACE);}
+
+<IF>"(?i:then)"             { return new Symbol(TokenConstants.THEN);}
+"f(?i:alse)"                { return new Symbol(TokenConstants.BOOL_CONST, false);}
+"t(?i:rue)"                 { return new Symbol(TokenConstants.BOOL_CONST, true);}
+{LOWERCASE}{ID_LETTERS}*    { return new Symbol(TokenConstants.OBJECTID, AbstractTable.idtable.addString(yytext()));}
+SPECIAL_ID                  { return new Symbol(TokenConstants.OBJECTID, AbstractTable.idtable.addString(yytext()));}
+
+"--".*                      { /* jump to next line */ ;}
+"(*"                        { yybegin(COMMENT);}
+<COMMENT>([^")"*])*         { ;}
+<COMMENT>"*)"               { yybegin(YYINITIAL);}
+"*)"                        { return new Symbol(TokenConstants.ERROR, AbstractTable.stringtable.addString("Unmatched )*"));}
+{WHITESPACE}+               { ;/* no action for whitespace */}
+.                           { /* This rule should be the very last
+                                 in your lexical specification and
+                                 will match match everything not
+                                 matched by other lexical rules. */
+                                // System.err.println("LEXER BUG - UNMATCHED: " + yytext()); 
+                                return new Symbol(TokenConstants.ERROR, AbstractTable.stringtable.addString(yytext()));}
